@@ -2,26 +2,32 @@ package main
 
 import (
 	"pet_project/internal/database"
-	"pet_project/internal/hendlers"
-	orm "pet_project/internal/taskServise"
+	handlers "pet_project/internal/hendlers"
+	taskServise "pet_project/internal/taskServise"
+	orm "pet_project/internal/userService"
 
 	"github.com/labstack/echo/v4/middleware"
 
 	"pet_project/internal/web/tasks"
+	user "pet_project/internal/web/users"
 
 	"github.com/labstack/echo/v4"
 )
 
 func main() {
 	database.InitDB()
-	if err := database.DB.AutoMigrate(&orm.Message{}); err != nil {
+	if err := database.DB.AutoMigrate(&taskServise.Message{}); err != nil {
 		panic("Error")
 	}
 
-	repo := orm.NewTaskRepository(database.DB)
-	service := orm.NewService(repo)
+	repo := taskServise.NewTaskRepository(database.DB)
+	service := taskServise.NewTaskService(repo)
 
-	handler := hendlers.NewHendler(service)
+	urepo := orm.NewUserRepository(database.DB)
+	uservice := orm.NewUserService(urepo)
+
+	handler := handlers.NewTaskHendler(service)
+	uhandler := handlers.NewUserHandler(uservice)
 
 	e := echo.New()
 
@@ -31,10 +37,8 @@ func main() {
 	strictHandler := tasks.NewStrictHandler(handler, nil)
 	tasks.RegisterHandlers(e, strictHandler)
 
-	e.GET("/api/get", handler.GetTaskHendler)
-	e.POST("/api/post", handler.PostTaskHandler)
-	e.PATCH("/api/patch/:id", handler.PutchTaskHendler)
-	e.DELETE("/api/delete/:id", handler.DeleteTaskHendler)
+	userHandler := user.NewStrictHandler(uhandler, nil)
+	user.RegisterHandlers(e, userHandler)
 
 	if err := e.Start("localhost:8080"); err != nil {
 		panic("Error")
